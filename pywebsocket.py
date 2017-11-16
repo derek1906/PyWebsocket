@@ -7,6 +7,8 @@ from pprint import pprint
 import traceback
 
 WEBSOCKET_HANDSHAKE_KEY = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+HOST = "localhost"
+PORT = 8000
 
 
 def recv(socket, nbytes):
@@ -25,6 +27,9 @@ def parseHTTPHeader(header_str):
 	headers = [header.strip().split(":", 1) for header in headers]
 
 	request_parts = header_str[0].split(" ")
+	if len(request_parts) != 3:
+		return None
+
 	request = {
 		"type": request_parts[0].strip(),
 		"path": request_parts[1].strip(),
@@ -142,9 +147,11 @@ def read_frame(socket):
 serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #bind the socket to a public host,
 # and a well-known port
-serversocket.bind(("localhost", 8000))
+serversocket.bind((HOST, PORT))
 #become a server socket
 serversocket.listen(1)
+
+print("Starting server on %s port %d" % (HOST, PORT))
 
 while 1:
 	try:
@@ -152,7 +159,7 @@ while 1:
 		print("Waiting for new client...")
 		#accept connections from outside
 		(clientsocket, address) = serversocket.accept()
-		print("New client connected.")
+		print("New client connected from %s port %d." % address)
 
 		data = clientsocket.recv(2048)
 		header = parseHTTPHeader(data)
@@ -160,7 +167,10 @@ while 1:
 		print("Received header:")
 		pprint(header)
 
-		handle_request(header, clientsocket)
+		if header is not None:
+			handle_request(header, clientsocket)
+		else:
+			print("Invalid header received.")
 
 		clientsocket.close()
 		print("Closed connection.")
