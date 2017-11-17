@@ -10,7 +10,7 @@ Run
 
     python main.py
 
-to start the server. The HTTP server will look for files inside the `www/` directory.
+to start the server. The HTTP server will look for files only inside the `www/` directory.
 
 Currently the WebSocket can only receive data. Transmitting data is not implemented yet.
 
@@ -26,3 +26,12 @@ The main goal is to understand how HTTP and WebSocket protocols work under the h
 
 - Without gzipping the content, serving a relatively big single-page application is 
   reasonably fast given that the server can handle multiple requests at the same time.
+
+### Caveats
+In no way the HTTP/WebSocket server is complete or secure. Things that it does not support:
+
+- Almost all headers such as `Cookies` and `Expect` are not supported. The only headers it supports
+  are `Connection`, `Upgrade`, and `Sec-WebSocket-Key` which are necessary for upgrading protocol
+  to the WebSocket protocol.
+
+- Content and payloads are not compressed.
