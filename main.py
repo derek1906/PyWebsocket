@@ -11,8 +11,6 @@ def fetch_page(path):
 	www_dir_path = os.path.abspath("www/")
 	requested_file_path = os.path.abspath(os.path.join(www_dir_path, path))
 
-	log("File accessed: {}".format(requested_file_path))
-
 	if os.path.commonprefix([www_dir_path, requested_file_path]) != www_dir_path:
 		# bad address
 		return HTTPResponder.generate_HTTP_response(404, "Not found")
@@ -25,6 +23,7 @@ def fetch_page(path):
 		# file not found
 		return HTTPResponder.generate_HTTP_response(404, "Not found")
 
+	log("File accessed: {}".format(path))
 	with open(requested_file_path, "rb") as file:
 		content_type, encoding = mimetypes.guess_type(requested_file_path)
 		return HTTPResponder.generate_HTTP_response(200, file.read(), {
