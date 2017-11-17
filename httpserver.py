@@ -4,6 +4,9 @@ import re
 import hashlib
 import base64
 import struct
+import datetime
+from email.utils import formatdate
+
 from httpcodes import http_code_lookup
 from log import log
 
@@ -27,10 +30,11 @@ class HTTPServer:
 
 	def start(self):
 		# Start server
-		log("Starting server at {} port {}".format(self.host, self.port))
 		self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.server_socket.bind((self.host, self.port))
 		self.server_socket.listen(self.max_connections)
+
+		log("Started server at {} port {}.".format(*self.server_socket.getsockname()))
 
 		while True:
 			try:
@@ -69,7 +73,8 @@ class HTTPResponder(threading.Thread):
 		self.daemon = True
 
 	def run(self):
-		log("Client connected from {} port {}".format(self.address[0], self.address[1]))
+		log("Client connected from {} port {}.".format(*self.address))
+		start_time = datetime.datetime.now()
 
 		try:
 			content = self.parse_http_content()
@@ -83,7 +88,11 @@ class HTTPResponder(threading.Thread):
 			e.cb(self.server, self.client_socket, self.address)
 
 		self.client_socket.close()
-		log("Closed connection for {} port {}".format(self.address[0], self.address[1]))
+
+		end_time = datetime.datetime.now()
+
+		log("Closed connection for {} port {} after {} seconds.".format(
+			self.address[0], self.address[1], (end_time - start_time).total_seconds()))
 
 	def parse_http_content(self):
 		# Fetch data
@@ -127,13 +136,16 @@ class HTTPResponder(threading.Thread):
 			else:
 				response = route.handler(content)
 
+		log(response)
 		self.client_socket.send(response)
 
 	@staticmethod
 	def generate_HTTP_response(http_code, content, additional_headers={}, replace_headers=False):
 		headers = {
 			"Connection": "close",
-			"Server": HTTPResponder.server_name
+			"Status": http_code,
+			"Server": HTTPResponder.server_name,
+			"Date": formatdate(timeval=None, localtime=False, usegmt=True)
 		}
 		if content is not None:
 			headers.update({
@@ -307,11 +319,11 @@ class HTTPRoute:
 			return self.content_handler(content)
 		elif self.type == "websocket":
 			if content["type"] == "GET" and \
-				content["headers"]["Connection"] == "Upgrade" and \
-				content["headers"]["Upgrade"] == "websocket":
+				content["headers"].get("Connection", None) == "Upgrade" and \
+				content["headers"].get("Upgrade", None) == "websocket":
 				raise ProtocolChangeException(self.create_init_websocketresponder(content["headers"]["Sec-WebSocket-Key"]))
 			else:
-				HTTPResponder.generate_HTTP_response(400, "Bad Request")
+				return HTTPResponder.generate_HTTP_response(400, "Bad Request")
 		else:
 			log("Unsupported type.")
 			return HTTPResponder.generate_HTTP_response(500, "Whoops")
